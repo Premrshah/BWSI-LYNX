@@ -23,7 +23,8 @@ setup(
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-        ],
+    'console_scripts': [
+        'ar_detector = vision_processors.ar_detector:main',
+    ],
     },
 )
