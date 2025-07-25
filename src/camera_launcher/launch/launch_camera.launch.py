@@ -6,7 +6,11 @@ def generate_launch_description():
         package='camera_ros',
         executable='camera_node',
         name='front_cam',
-        parameters=[{'camera':0}],
+        parameters=[
+            {'camera':0},
+            {'width':800},
+            {'height':600}
+        ],
         output='screen'
     )
 
@@ -14,7 +18,11 @@ def generate_launch_description():
         package='camera_ros',
         executable='camera_node',
         name='down_cam',
-        parameters=[{'camera':1}],
+        parameters=[
+            {'camera':1},
+            {'width':800},
+            {'height':600}
+        ],
         output='screen'
     )
 
