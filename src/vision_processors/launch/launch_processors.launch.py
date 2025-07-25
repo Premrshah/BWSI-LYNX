@@ -8,3 +8,5 @@ def generate_launch_description():
         name='ar_detector',
         output='screen'
     )
+
+    return LaunchDescription([ar_detector])
