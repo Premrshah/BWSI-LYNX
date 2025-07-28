@@ -51,31 +51,37 @@ class LineDetector(Node):
             Args: 
                 - msg = ROS Image message
         """
-        # Convert Image msg to OpenCV image
-        image = self.bridge.imgmsg_to_cv2(msg, "mono8")
+        try:
+            # Convert Image msg to OpenCV image
+            image = self.bridge.imgmsg_to_cv2(msg, "mono8")
 
-        # Detect line in the image. detect returns a parameterize the line (if one exists)
-        line = self.detect_line(image)
+            # Detect line in the image. detect returns a parameterize the line (if one exists)
+            line = self.detect_line(image)
 
-        # If a line was detected, publish the parameterization to the topic '/line/param'
-        if line is not None:
-            msg = Line()
-            msg.x, msg.y, msg.vx, msg.vy = line
-            # Publish param msg
-            self.line_pub.publish(msg)
+            # If a line was detected, publish the parameterization to the topic '/line/param'
+            if line is not None:
+                msg = Line()
+                msg.x, msg.y, msg.vx, msg.vy = line
+                # Publish param msg
+                self.line_pub.publish(msg)
 
-        # Publish annotated image if DISPLAY is True and a line was detected
-        if DISPLAY and line is not None:
-            # Draw the detected line on a color version of the image
-            annotated = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-            x, y, vx, vy = line
-            pt1 = (int(x - 100*vx), int(y - 100*vy))
-            pt2 = (int(x + 100*vx), int(y + 100*vy))
-            cv2.line(annotated, pt1, pt2, (0, 0, 255), 2)
-            cv2.circle(annotated, (int(x), int(y)), 5, (0, 255, 0), -1)
-            # Convert to ROS Image message and publish
-            annotated_msg = self.bridge.cv2_to_imgmsg(annotated, "bgr8")
-            self.processed_pub.publish(annotated_msg)
+            # Publish annotated image if DISPLAY is True and a line was detected
+            if DISPLAY and line is not None:
+                # Draw the detected line on a color version of the image
+                annotated = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+                x, y, vx, vy = line
+                pt1 = (int(x - 100*vx), int(y - 100*vy))
+                pt2 = (int(x + 100*vx), int(y + 100*vy))
+                cv2.line(annotated, pt1, pt2, (0, 0, 255), 2)
+                cv2.circle(annotated, (int(x), int(y)), 5, (0, 255, 0), -1)
+                # Convert to ROS Image message and publish
+                annotated_msg = self.bridge.cv2_to_imgmsg(annotated, "bgr8")
+                self.processed_pub.publish(annotated_msg)
+        
+        except CvBridgeError as e:
+            self.get_logger().error(f"CvBridge Error: {e}")
+        except Exception as e:
+            self.get_logger().error(f"Error in camera callback: {e}")
 
     ##########
     # DETECT #
@@ -91,10 +97,45 @@ class LineDetector(Node):
             (vx, vy) is a vector pointing in the direction of the line. Both values are given
             in downward camera pixel coordinates. Returns None if no line is found
         """
-        
-        # TODO choose one of our Line detection method and paste in here
-        return None
-
+        try:
+            # Step 1: Threshold to isolate dark line on light background
+            _, binary = cv2.threshold(image, LOW, 255, cv2.THRESH_BINARY_INV)        # Step 2: Apply morphological operations to remove noise and fill gaps
+            binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, KERNEL)
+            binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, KERNEL)        # Step 3: Find external contours
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)        
+            if not contours:
+                self.direction_initialized = False
+                return None        # Step 4: Find largest contour by area
+            largest_contour = max(contours, key=cv2.contourArea)        # Step 5: Check minimum contour arc length
+            contour_length = cv2.arcLength(largest_contour, closed=False)
+            if contour_length < LENGTH_THRESH:
+                self.direction_initialized = False
+                return None        # Step 6: Fit line to the largest contour
+            line_params = cv2.fitLine(largest_contour, cv2.DIST_L2, 0, 0.01, 0.01)
+            vx_raw = float(line_params[0])
+            vy_raw = float(line_params[1])
+            x = float(line_params[2])
+            y = float(line_params[3])        # Step 7: Ensure direction consistency (flip if necessary)
+            if self.direction_initialized:
+                dot_raw = self.prev_vx * vx_raw + self.prev_vy * vy_raw
+                dot_flipped = self.prev_vx * -vx_raw + self.prev_vy * -vy_raw
+                if dot_raw >= dot_flipped:
+                    vx, vy = vx_raw, vy_raw
+                else:
+                    vx, vy = -vx_raw, -vy_raw
+            else:
+                if vy_raw < 0:
+                    vx, vy = -vx_raw, -vy_raw
+                else:
+                    vx, vy = vx_raw, vy_raw
+                self.direction_initialized = True        # Step 8: Save current direction for consistency
+            self.prev_vx = vx
+            self.prev_vy = vy        
+            return (x, y, vx, vy)    
+        except Exception as e:
+            self.get_logger().error(f"Error in detect_line: {e}")
+            self.direction_initialized = False
+            return None
 
 def main(args=None):
     rclpy.init(args=args)
