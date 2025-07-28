@@ -26,7 +26,7 @@ setup(
     'console_scripts': [
         'ar_detector = vision_processors.ar_detector:main',
         'line_detector = vision_processors.line_detector:main',
-        'line_controller = vision_processors.line_controller:main'
+        'line_controller = vision_processors.line_controller:main',
     ],
     },
 )

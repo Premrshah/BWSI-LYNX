@@ -102,7 +102,7 @@ class LineDetector(Node):
             _, binary = cv2.threshold(image, LOW, 255, cv2.THRESH_BINARY_INV)        # Step 2: Apply morphological operations to remove noise and fill gaps
             binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, KERNEL)
             binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, KERNEL)        # Step 3: Find external contours
-            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)        
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 self.direction_initialized = False
                 return None        # Step 4: Find largest contour by area
@@ -130,8 +130,8 @@ class LineDetector(Node):
                     vx, vy = vx_raw, vy_raw
                 self.direction_initialized = True        # Step 8: Save current direction for consistency
             self.prev_vx = vx
-            self.prev_vy = vy        
-            return (x, y, vx, vy)    
+            self.prev_vy = vy
+            return (x, y, vx, vy)
         except Exception as e:
             self.get_logger().error(f"Error in detect_line: {e}")
             self.direction_initialized = False
