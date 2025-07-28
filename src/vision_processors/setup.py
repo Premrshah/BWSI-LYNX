@@ -25,6 +25,7 @@ setup(
     entry_points={
     'console_scripts': [
         'ar_detector = vision_processors.ar_detector:main',
+        'line_detector = vision_processors.line_detector:main'
     ],
     },
 )

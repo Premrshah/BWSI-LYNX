@@ -27,12 +27,6 @@ ARUCO_POINTS = np.array(
     dtype=np.float32
 )
 
-
-
-
-
-
-
 class ArDetector(Node):
     def __init__(self, cam_matrix = None):
         super().__init__('ar_detector')
